@@ -31,6 +31,11 @@ package info.mukel.telegrambot4s.methods
   */
 object ParseMode extends Enumeration {
   type ParseMode = Value
+  type Markdown = ParseMode.Markdown.type
+  type HTML = ParseMode.HTML.type
+
   val Markdown = Value("Markdown")
   val HTML = Value("HTML")
+
+
 }
