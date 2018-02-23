@@ -15,7 +15,7 @@ object RichMessage {
   private lazy val italicApplier: MCApplier = (f, t) => f.italic(t)
   private lazy val codeLineApplier: MCApplier = (f, t) => f.inlineCode(t)
   private lazy val codeBlockApplier: MCApplier = (f, t) => f.blockCode(t)
-  private lazy val plainApplier: MCApplier = (_, t) => t
+  private lazy val plainApplier: MCApplier = (f, t) => f.plain(t)
 
   trait MessageComponent {
     val text: String
@@ -118,20 +118,22 @@ object RichMessage {
     def mention(userId: Int, text: String): String = url(new URI(s"tg://user?id=$userId"), text)
     def inlineCode(code: String): String
     def blockCode(code: String): String
+    def plain(str: String): String
   }
 
   implicit object MarkdownTextFormat extends RichTextFormat[ParseMode.Markdown] {
-    private lazy val clickableTextRegex = "[|]".r
+    private lazy val plainRegex = """([\*`_])""".r
+    private lazy val clickableTextRegex = """\[|\]""".r
     private lazy val inlineCodeRegex = "`|\n".r
 
-    override def bold(component: String): String = s"*${component.replace("*", "\\*")}*"
-    override def italic(component: String): String = s"_${component.replace("_", "\\_")}_"
+    override def bold(component: String): String = s"*${component.replace("*", "")}*"
+    override def italic(component: String): String = s"_${component.replace("_", "")}_"
 
     override def url(url: URI, text: String): String =
-      /* Telegram seems not to be supporting escaping [, ], (, and ) from the urls? */
-      s"[${clickableTextRegex.replaceAllIn(text, "")}](${url.toASCIIString})"
+      s"[${clickableTextRegex.replaceAllIn(text, "")}](${url.toASCIIString.replace("(", "%28").replace(")", "%29")})"
     override def inlineCode(code: String): String = s"`${inlineCodeRegex.replaceAllIn(code, "")}`"
     override def blockCode(code: String): String = s"```${code.replace("```", "")}```"
+    override def plain(str: String): String = plainRegex.replaceAllIn(str, """\\$1""")
   }
 
   implicit object HTMLTextFormat extends RichTextFormat[ParseMode.HTML] {
@@ -147,6 +149,7 @@ object RichMessage {
     override def url(url: URI, text: String): String = s"<a href=${'"'}${url.toASCIIString}${'"'}>${escape(text)}</a>"
     override def inlineCode(code: String): String = s"<code>${escape(code)}</code>"
     override def blockCode(code: String): String = s"<pre>${escape(code)}</pre>"
+    override def plain(str: String): String = escape(str)
   }
 
   implicit class RichMessageSeq(seq: RichMessage) {
